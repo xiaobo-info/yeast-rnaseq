@@ -1,0 +1,23 @@
+fastqc -o ./result1 -t 20 ./samples/*.gz
+#not right
+#ls *.gz|paste - -|while read a;do arr=($a); s=`echo $a|awk -F "_" '{print $1}'`; trimmomatic PE -threads 8 -phred33 ${arr[0]} ${arr[1]} -baseout $s ILLUMINACLIP:/root/miniconda3/share/trimmomatic-0.39-2/adapters/TruSeq3-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36;done
+#right trim
+for i in {2,3,4,5,6};do trimmomatic SE -threads 8 -phred33 SRR191615${i}.fastq SRR191615${i}_trim.fastq ILLUMINACLIP:/root/miniconda3/share/trimmomatic-0.39-2/adapters/TruSeq3-SE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36; done
+
+ls *_1P|paste |while read a ;do arr=($a);gzip ${arr[0]} ;mv *1P.gz ../result2 done; done
+
+fastqc -o ../result3/ -t 5 *_trim.fastq
+
+isat2-build Saccharomyces_cerevisiae.R64-1-1.dna.toplevel.fa yeast
+
+hisat2 -x ../yeast-ref/yeast-ref -p 20 -U SRR1916152.fastq -S yeast-1.sam
+
+samtools view -bS yeast-1.sam -o yeast-1.bam
+
+samtools sort yeast-4.bam -o yeast-4-sort.bam
+
+for i in {1,2,3,4,5};do stringtie -G ../yeast-ref/Saccharomyces_cerevisiae.R64-1-1.96.gtf -o yeast-${i}-sort.gtf -l yeast-${i} yeast-${i}-sort.bam;done
+
+stringtie --merge -p 5 -G ../yeast-ref/Saccharomyces_cerevisiae.R64-1-1.96.gtf -o yeast_strigtie_merged.gtf ./yeast_merged.txt
+
+for i in {1,2,3,4,5};do stringtie -e -B -p 5 -G yeast_strigtie_merged.gtf -o ballgown/yeast-${i}/yeast-${i}.gtf yeast-${i}-sort.bam;done
